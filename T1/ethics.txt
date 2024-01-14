@@ -1,0 +1,14 @@
+I believe this would be an ethical violation regardless of what the perpetrator does with the file. Two parties 
+can be mutually responsible for an ethics violations, in this case the individual who published their files and 
+those who access them. To my knowledge, this work is supposed to be individual and therefore any collaboration 
+is technically illict. In academic integrity violations, both the party whom shared their work and the party 
+whom viewed the work are held responsible and one would assume the same applies here. The best course of action 
+would be to not view or interact with the peers files in any way even if you noticed they were shared. In terms 
+of the person who shared them, they should have avoided doing that in the first place and perhaps revoke those 
+public permissions as soon as possible to prevent furthering their misdeed. We may revisit Lecture 0 to 
+understand why this is still a "harm" even in the event that no one is directly harmed. We established that one 
+can can harm another even if that harm is never noticed by the other party, and one can harm another even if the 
+harm was not caused by either party. In the present example, both parties could be responsible of each type of 
+harm. With the individual sharing the file unknowingly harming another by making their file accessible, and the 
+viewer harming the other without meaning to cause harm, and that harm never being noticed by the originating 
+party.
