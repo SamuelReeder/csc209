@@ -5,10 +5,14 @@
  * This function interprets score_card as an array of pointers with size elements.
  * Return the sum of the values pointed to by the elements of score_card.
  */
-int sum_card(int **score_card, int size) {
-    // TODO: write the body of sum_card according to its description.
-}
 
+int sum_card(int **score_card, int size) {
+    int s = 0;
+    for (int i = 0; i < size; i++) {
+        s += *(score_card[i]);
+    }
+    return s;
+}
 
 /*
  * NOTE: don't change the main function!
