@@ -198,11 +198,14 @@ int main(int argc, char *argv[]) {
         long n = strtol(argv[2], &endptr, 10);
 
         if (endptr && endptr[0] != '\0') {
-            fprintf(stderr, "error: %s is not a valid integer.\n", argv[2]);
+            fprintf(stderr, "error: %s is not an integer.\n", argv[2]);
             exit(1);
         }
 
         printf("Creating a langford pairing with n=%ld\n", n);
+        if (n < 1) {
+            exit(0);
+        }
         generate_langford_pairing(n);
     } else {
         // validation
@@ -211,7 +214,7 @@ int main(int argc, char *argv[]) {
             char *endptr;
             long num = strtol(argv[i], &endptr, 10);
             if (endptr && endptr[0] != '\0') {
-                fprintf(stderr, "error: %s is not a valid integer.\n", argv[i]);
+                fprintf(stderr, "error: %s is not an integer.\n", argv[i]);
                 free(seq);
                 exit(1);
             }
