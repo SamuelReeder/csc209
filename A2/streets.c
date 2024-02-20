@@ -534,6 +534,20 @@ int isEmpty(MinHeap* minHeap) {
     return minHeap->size == 0;
 }
 
+void freeMinHeap(MinHeap* minHeap) {
+    if (minHeap == NULL) {
+        return;
+    }
+
+    for (int i = 0; i < minHeap->size; i++) {
+        free(minHeap->array[i]);
+    }
+
+    free(minHeap->array);
+    free(minHeap->pos);
+    free(minHeap);
+}
+
 MinHeapNode* extractMin(MinHeap* minHeap) {
     if (isEmpty(minHeap))
         return NULL;
@@ -686,8 +700,5 @@ void ssmap_path_create(const struct ssmap * m, int start_id, int end_id) {
         printf("%d ", path[i]);
     }
     printf("\n");
-
-    free(pq->array);
-    free(pq->pos);
-    free(pq);
+    freeMinHeap(pq);
 }
