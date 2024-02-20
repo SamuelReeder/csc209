@@ -285,30 +285,6 @@ distance_between_nodes(const struct node * x, const struct node * y) {
 }
 
 
-struct way* find_way_between_nodes(int node_id_a, int node_id_b, const struct ssmap *m) {
-    for (int i = 0; i < m->nodes[node_id_a].num_ways; i++) {
-        int way_id = m->nodes[node_id_a].way_ids[i];
-        struct way *way = &m->ways[way_id];
-
-        for (int j = 0; j < way->num_nodes - 1; j++) {
-            if (way->node_ids[j] == node_id_a) {
-                if (way->node_ids[j + 1] == node_id_b) {
-                    return way;
-                }
-            }
-
-            // ff  way is not one-way also check reverse direction
-            if (!way->oneway && way->node_ids[j + 1] == node_id_a) {
-                if (way->node_ids[j] == node_id_b) {
-                    return way;
-                }
-            }
-        }
-    }
-    return NULL; // no valid way found that connects node_id_a to node_id_b respecting one-way restrictions
-}
-
-
 double 
 ssmap_path_travel_time(const struct ssmap * m, int size, int node_ids[size])
 {
@@ -692,6 +668,7 @@ void ssmap_path_create(const struct ssmap * m, int start_id, int end_id) {
     // check for path
     if (path[length - 1] != start_id) {
         printf("No path found from node %d to node %d\n", start_id, end_id);
+        freeMinHeap(pq);
         return;
     }
 
