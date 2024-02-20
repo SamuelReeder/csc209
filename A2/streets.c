@@ -77,13 +77,13 @@ ssmap_destroy(struct ssmap * m)
         free(m->ways[i].name); 
         free(m->ways[i].node_ids);
     }
-    free(m->ways);
 
     // free all node objects and their fields
     for (int j = 0; j < m->num_nodes; j++) {
         free(m->nodes[j].way_ids); 
     }
     free(m->nodes);
+    free(m->ways);
 
     free(m);
 }
@@ -196,7 +196,7 @@ ssmap_print_node(const struct ssmap * m, int id)
         return;
     }
 
-    printf("Node %d: (%lf, %lf)\n", id, node_obj->lat, node_obj->lon);
+    printf("Node %d: (%.7f, %.7f)\n", id, node_obj->lat, node_obj->lon);
     printf("Associated with %d ways\n", node_obj->num_ways);
 
     printf("Way IDs: ");
