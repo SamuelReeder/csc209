@@ -237,12 +237,19 @@ ssmap_find_node_by_names(const struct ssmap * m, const char * name1, const char 
         for (int j = 0; j < node->num_ways; j++) {
             struct way *way = &m->ways[node->way_ids[j]];
 
-            if (found_1 == -1 && strstr(way->name, name1) != NULL) {
-                found_1 = way->id;
-            }
+            if (name2 == NULL) {
+                if (found_1 == -1 && strstr(way->name, name1) != NULL) {
+                    found_1 = way->id;
+                }
+            } else {
+                if (found_1 == -1 && strstr(way->name, name1) != NULL) {
+                    found_1 = way->id;
+                    continue;
+                }
 
-            if (name2 != NULL && found_2 == -1 && strstr(way->name, name2) != NULL) {
-                found_2 = way->id;
+                if (found_2 == -1 && strstr(way->name, name2) != NULL) {
+                    found_2 = way->id;
+                }
             }
 
             if (found_1 != -1 && (name2 == NULL || (found_2 != -1 && found_1 != found_2))) {
