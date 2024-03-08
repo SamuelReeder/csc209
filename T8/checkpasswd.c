@@ -36,9 +36,14 @@ int main(void)
 
     // TODO
     // account for new line character with MAX_PASSWORD
-    if (strlen(user_id) > 11 || strlen(password) > 11)
+    // possible error checking for input length?
+    if (strlen(user_id) > 11)
     {
+        printf(NO_USER);
         exit(1);
+    } else if (strlen(password) > 11)
+    {
+        password[11] = '\0';
     }
 
     int status;
