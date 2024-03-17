@@ -52,59 +52,80 @@ int *execute_line(Command *head){
     #endif
 
     int *return_code = malloc(sizeof(int));
-    if (return_code == NULL) {
-        return NULL;
+    if (!return_code) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
     }
 
+    if (!head) { // no commands to execute
+        *return_code = 0;
+        return return_code;
+    }
+
+    int input_fd = 0; // start with standard input
     int pipefd[2];
-    int input_fd = 0; // Start with standard input
-    pid_t pid;
-
     Command *cmd = head;
+    pid_t last_pid;
+
     while (cmd != NULL) {
-        if (pipe(pipefd) == -1) {
-            perror("pipe");
-            *return_code = -1;
-            return return_code;
+        if (cmd->next) {
+            if (pipe(pipefd) == -1) {
+                perror("pipe");
+                *return_code = -1;
+                return return_code;
+            }
         }
 
-        pid = fork();
-        if (pid == 0) {
-            // Child process
-            if (input_fd != 0) {
-                dup2(input_fd, 0); // Replace standard input with input pipe
-                close(input_fd);
+        // setup redirections for current command if necessary
+        if (cmd->redir_in_path) {
+            cmd->stdin_fd = open(cmd->redir_in_path, O_RDONLY);
+            if (cmd->stdin_fd == -1) {
+                perror("open input redirection");
+                *return_code = -1;
+                return return_code;
             }
-            if (cmd->next != NULL) {
-                dup2(pipefd[1], 1); // Replace standard output with output pipe
-                close(pipefd[1]);
-            }
-            close(pipefd[0]);
-
-            if (execvp(cmd->args[0], cmd->args) == -1) {
-                perror("execvp");
-                exit(EXIT_FAILURE);
-            }
-        } else if (pid < 0) {
-            // Fork failed
-            perror("fork");
-            *return_code = -1;
-            return return_code;
+        } else {
+            cmd->stdin_fd = input_fd;
         }
 
-        // Parent process
-        close(pipefd[1]);
-        if (input_fd != 0) {
-            close(input_fd);
+        if (cmd->redir_out_path) {
+            int flags = O_WRONLY | O_CREAT | (cmd->redir_append ? O_APPEND : O_TRUNC);
+            cmd->stdout_fd = open(cmd->redir_out_path, flags, 0644);
+            if (cmd->stdout_fd == -1) {
+                perror("open output redirection");
+                *return_code = -1;
+                return return_code;
+            }
+        } else if (cmd->next) { // pipe next
+            cmd->stdout_fd = pipefd[1];
+        } else { // last so standard output
+            cmd->stdout_fd = STDOUT_FILENO;
         }
-        input_fd = pipefd[0]; // Save the input pipe for the next command
+
+        last_pid = run_command(cmd);
+
+        if (cmd->redir_in_path && cmd->stdin_fd != STDIN_FILENO) {
+            close(cmd->stdin_fd);
+        }
+
+        if (input_fd != STDIN_FILENO) {
+            close(input_fd); 
+        }
+        input_fd = pipefd[0]; 
+
+        if (cmd->next) {
+            close(pipefd[1]);
+        }
 
         cmd = cmd->next;
     }
 
-    // Wait for the last command to finish and save its return code
-    waitpid(pid, return_code, 0);
-    *return_code = WEXITSTATUS(*return_code);
+    if (waitpid(last_pid, return_code, 0) == -1) {
+        perror("waitpid");
+        *return_code = -1;
+    } else {
+        *return_code = WEXITSTATUS(*return_code);
+    }
 
     return return_code;
 }
@@ -140,54 +161,64 @@ int run_command(Command *command){
     #endif
 
 
-    #ifdef DEBUG
-    printf("Parent process created child PID [%d] for %s\n", pid, command->exec_path);
-    #endif
+    // #ifdef DEBUG
+    // printf("Parent process created child PID [%d] for %s\n", pid, command->exec_path);
+    // #endif
 
-    int child = fork();
-    if (child < 0){
+     if (command == NULL || command->args == NULL || command->args[0] == NULL) {
         perror("run_command");
         return -1;
     }
+
+    if (strcmp(command->args[0], "cd") == 0) {
+        // call cd_cscshell instead of execvp
+        return cd_cscshell(command->args[1]);
+    }
+
+    pid_t child = fork();
+    if (child < 0){
+        perror("fork in run_command");
+        return -1;
+    }
+
     if (child == 0){
-        // Child process
-        if (command->stdin_fd != STDIN_FILENO){
-            if (dup2(command->stdin_fd, STDIN_FILENO) < 0){
-                perror("run_command");
+        // child
+        if (command->redir_in_path != NULL){
+            int in_fd = open(command->redir_in_path, O_RDONLY);
+            if (in_fd < 0) {
+                perror("open input redirection file");
                 exit(EXIT_FAILURE);
             }
-        }
-        if (command->stdout_fd != STDOUT_FILENO){
-            if (dup2(command->stdout_fd, STDOUT_FILENO) < 0){
-                perror("run_command");
-                exit(EXIT_FAILURE);
-            }
+            dup2(in_fd, STDIN_FILENO);
+            close(in_fd);
         }
 
-        if (execv(command->exec_path, command->args) < 0){
-            perror("run_command");
+        if (command->redir_out_path != NULL){
+            int flags = O_WRONLY | O_CREAT | (command->redir_append ? O_APPEND : O_TRUNC);
+            int out_fd = open(command->redir_out_path, flags, 0644);
+            if (out_fd < 0) {
+                perror("open output redirection file");
+                exit(EXIT_FAILURE);
+            }
+            dup2(out_fd, STDOUT_FILENO);
+            close(out_fd);
+        }
+
+        // for (int i = 0; command->args[i] != NULL; i++) {
+        //     printf("args[%d]: %s\n", i, command->args[i]);
+        // }
+
+        // Execute the command
+        if (execvp(command->exec_path, command->args) < 0){
+            perror("execvp in run_command");
             exit(EXIT_FAILURE);
         }
     }
-    else {
-        // Parent process
-        #ifdef DEBUG
-        printf("Parent process created child PID [%d] for %s\n", child, command->exec_path);
-        #endif
 
-        return child;  // Return child PID
-
-    }
-
-    return -1;
+    return child;  // return child PID
 }
 
-/*
-** Executes an entire script line-by-line.
-** Stops and indicates an error as soon as any line fails.
-**
-** Returns 0 on success, -1 on error
-*/
+
 int run_script(char *file_path, Variable **root){
     FILE *file = fopen(file_path, "r");
     if (file == NULL){
@@ -198,7 +229,7 @@ int run_script(char *file_path, Variable **root){
     char line[MAX_SINGLE_LINE];
     while (fgets(line, MAX_SINGLE_LINE, file) != NULL){
         // kill the newline
-        line[strlen(line) - 1] = '\0';
+        line[strlen(line)] = '\0';
 
         Command *commands = parse_line(line, root);
         if (commands == (Command *) -1){
@@ -217,7 +248,7 @@ int run_script(char *file_path, Variable **root){
         }
         free(last_ret_code_pt);
 
-        // Free the commands
+        // free the commands
         Command *tmp;
         while (commands != NULL) {
             tmp = commands;
@@ -229,6 +260,7 @@ int run_script(char *file_path, Variable **root){
     fclose(file);
     return 0;
 }
+
 
 void free_command(Command *command) {
     if (command == NULL) return;

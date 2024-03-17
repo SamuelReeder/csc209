@@ -25,15 +25,15 @@ char *prompt(char *line, size_t line_length){
     }
 
     // TODO: unccomt
-    // char user_buff[MAX_USER_BUF];
-    // if (getlogin_r(user_buff, MAX_USER_BUF)){
-    //     printf("here instead\n");
-    //     perror("prompt:");
-    //     return (char *) -1;
-    // }
+    char user_buff[MAX_USER_BUF];
+    if (getlogin_r(user_buff, MAX_USER_BUF)){
+        printf("here instead\n");
+        perror("prompt:");
+        return (char *) -1;
+    }
 
-    // printf("%s@<%s> %s", user_buff, cwd_buff, PROMPT_STR);
-    printf("@<%s> %s", cwd_buff, PROMPT_STR);
+    printf("%s@<%s> %s", user_buff, cwd_buff, PROMPT_STR);
+    // printf("@<%s> %s", cwd_buff, PROMPT_STR);
     return fgets(line, line_length, stdin);
 }
 
@@ -48,7 +48,6 @@ int run_interactive(Variable **root){
 
     while ((error = (long) prompt(line, MAX_SINGLE_LINE)) > 0) {
 
-        printf("line: %s\n", line);
         // kill the newline
         line[strlen(line) - 1] = '\0';
 
@@ -123,17 +122,12 @@ int main(int argc, char *argv[]){
         strcmp(start_of_vars->name, PATH_VAR_NAME) > 0) {
         ERR_PRINT(ERR_PATH_INIT, init_file);
     }
-
-    printf("PATH: %s\n", start_of_vars->value);
     
-    printf("argc: %d\n", argc);
-    printf("num_args_parsed: %d\n", num_args_parsed);
     int ret_code;
     if (num_args_parsed < argc-1){
         ret_code = run_script(argv[argc-1], &start_of_vars);
     }
     else{
-        printf("Interactive mode\n");
         ret_code = run_interactive(&start_of_vars);
     }
 

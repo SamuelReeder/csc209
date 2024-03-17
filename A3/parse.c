@@ -21,80 +21,45 @@ char* trim_whitespace(char* str) {
     return str;
 }
 
+
 int is_empty_or_comment(char* line) {
     line = trim_whitespace(line);
     return *line == '\0' || *line == '#';
 }
 
-/*
-** The following functions are provided for you in _shell.c
-** You should modify them as needed, but do *not* change their signatures
-**
-** If they are marked as "COMPLETE", do not change them!
-*/
 
-/*
-** Parses a single line of text and returns a linked list of commands.
-** The last command in the list has a next pointer that points to NULL.
-**
-** Return possibilities:
-** 1. The first in a list of commands that should execute roughly
-**    simultaneously (see instructions for details).
-**
-** 2. NULL if successfully parsed line, with *no commands*, this happens:
-**    -- Case 1: Empty line
-**    -- Case 2: Line is /exclusively/ a comment (i.e. first non-whitespace
-**               char is '#'). Comments may also trail commands or assignments.
-**               You must handle text before '#' characters.
-**    -- Case 3: Shell variable assignment (e.g. VAR=VALUE)
-**       -- The variable should added to the variables list
-**       -- or updated if the variable already exists
-**
-** 3. If there is an error, returns -1 cast as a (Command *)
-*/
 Command *parse_line(char *line, Variable **variables) {
     if (line == NULL || is_empty_or_comment(line)) return NULL;
-
+    
     char* trimmed_line = trim_whitespace(line);
 
     char* equal_sign = strchr(trimmed_line, '=');
     if (equal_sign != NULL) {
         
-        // *equal_sign = '\0';
-        // TODO: bugcheck this
-        // check if illegal chars in variable (whitespace or number) 
-        //
-
-        // Temporarily terminate the string at the equal sign
         *equal_sign = '\0';
-
-        // Assign the stuff before the equal sign to name
+        // assign the stuff before the equal sign to name
         char* name = strdup(trimmed_line);
-
-        // Restore the equal sign
         *equal_sign = '=';
 
-        // Assign the stuff after the equal sign to value
+        // assign the stuff after the equal sign to value
         char* value = strdup(equal_sign + 1);
 
-        // Now you can use name and value...
-        // Don't forget to free them when you're done
-        printf("name: %s\n", name);
-        printf("value: %s\n", value);
+        // printf("name: %s\n", name);
+        // printf("value: %s\n", value);
         
         for (int i = 0; name[i] != '\0'; i++) {
             if (isdigit(name[i]) || isspace(name[i])) {
-                // Handle error: variable name contains a number or space
+                perror("parse_line");
                 return NULL;
             }
         }
 
         if (variables == NULL) {
-            return NULL; // Can't do anything if variables is NULL
+            return NULL; // can't do anything if variables is NULL
         }
         Variable *temp = *variables;
         if (temp == NULL) {
-            // No variables yet, create the first one
+            // no variables yet, create first one
             temp = (Variable *) malloc(sizeof(Variable));
             if (temp == NULL) {
                 return NULL;
@@ -102,20 +67,18 @@ Command *parse_line(char *line, Variable **variables) {
             temp->name = strdup(name);
             temp->value = strdup(value);
             temp->next = NULL;
-            *variables = temp; // Update the original pointer
+            *variables = temp;
         } else {
-            // Find the variable with the same name or the last variable in the list
             Variable *prev = NULL;
             while (temp != NULL && strcmp(temp->name, name) != 0) {
                 prev = temp;
                 temp = temp->next;
             }
             if (temp != NULL) {
-                // Variable with the same name found, update its value
-                free(temp->value); // Free the old value first to avoid memory leaks
+                // variable with same name found, update its value
+                free(temp->value);
                 temp->value = strdup(value);
             } else {
-                // No variable with the same name found, create a new one
                 temp = (Variable *) malloc(sizeof(Variable));
                 if (temp == NULL) {
                     return NULL;
@@ -123,97 +86,100 @@ Command *parse_line(char *line, Variable **variables) {
                 temp->name = strdup(name);
                 temp->value = strdup(value);
                 temp->next = NULL;
-                prev->next = temp; // Add the new variable to the end of the list
+                prev->next = temp;
             }
         }
-        free(name); // Don't forget to free name and value when you're done with them
+        free(name); 
         free(value);
 
         return NULL;
     
     }
 
-    Command **cmds = (Command **)malloc(sizeof(Command *));
-    if (cmds == NULL) {
-        return NULL;
+    Command *head = NULL; 
+    Command *current = NULL;
+
+    char *line_copy = strdup(line);
+    if (line_copy == NULL) {
+        return (Command *)-1;
     }
+    char *saveptr;
+    char *token = strtok_r(line_copy, " \t\n", &saveptr);
 
-    char *token = strtok(line, " \t\n");
-    if (token == NULL) {
-        return NULL;
-    }
-
-    Command *cmd = (Command *)malloc(sizeof(Command));
-    if (cmd == NULL) {
-        return NULL;
-    }
-
-    char *executable = resolve_executable(strdup(token), *variables);
-    if (executable == NULL) {
-        return NULL;
-    }
-
-    cmd->exec_path = executable;
-    if (cmd->exec_path == NULL) {
-        return NULL;
-    }
-
-    cmd->args = (char **)malloc(sizeof(char *));
-    if (cmd->args == NULL) {
-        return NULL;
-    }
-
-    cmds[0] = cmd;
-
-    char *temp_args[100];
-    int i = 0;
-    while ((token = strtok(NULL, " \t\n")) != NULL) {
-
-        if (token[0] == '>') {
-            token = strtok(NULL, " \t\n");
-            // migt want to use heap for strings TODO
-            cmd->redir_out_path = strdup(token);
-
-
-        } else if (token[0] == '<') {
-            token = strtok(NULL, " \t\n");
-            cmd->redir_in_path = strdup(token);
-
-        } else if (token[0] == '|') {
-
-            token = strtok(NULL, " \t\n");
-            char *next_exec = resolve_executable(strdup(token), *variables);
-            if (next_exec == NULL) {
-                return NULL;
-            }
-
+    while (token != NULL) {
+        // ensure a new Command struct is created either at the start or following a pipe
+        if (current == NULL || token[0] == '|') {
             Command *new_cmd = (Command *)malloc(sizeof(Command));
             if (new_cmd == NULL) {
-                return NULL;
+                free(line_copy);
+                return (Command *)-1;
             }
+            memset(new_cmd, 0, sizeof(Command)); 
 
-            cmd->next = new_cmd;
-            cmd = cmd->next;
-            cmd->exec_path = next_exec;
+            if (head == NULL) {
+                head = new_cmd;
+            } else {
+                Command *last = head;
+                while (last->next != NULL) {
+                    last = last->next;
+                }
+                last->next = new_cmd;
+            }
+            current = new_cmd;
 
-            cmd->args = (char **)malloc(sizeof(char *));
-            for (int j = 0; j <= i; j++) {
-                cmd->args[j] = strdup(temp_args[j]);
+            if(token[0] == '|') {
+                token = strtok_r(NULL, " \t\n", &saveptr);
+                if(token == NULL) break; // if there's nothing after |: end parsing
             }
-            i = 0;
-        } else {
-            cmd->args = (char **)realloc(cmd->args, sizeof(char *) * (i + 2)); // +2 to account for the current argument and NULL terminator
-            if (cmd->args == NULL) {
-                return NULL;
-            }
-            cmd->args[i] = strdup(token);
-            cmd->args[++i] = NULL; // NULL terminate the args array
         }
+
+        if (token[0] == '<') {
+            // handle redirection
+            // printf("redir token: %s\n", token);
+            token = strtok_r(NULL, " \t\n", &saveptr);
+            if (token == NULL) {
+                free(line_copy);
+                return (Command *)-1;
+            }
+            current->redir_in_path = strdup(token);
+
+        } else if (token[0] == '>') {
+            // printf("redir token: %s\n", token);
+            token = strtok_r(NULL, " \t\n", &saveptr);
+            if (token == NULL) {
+                free(line_copy);
+                return (Command *)-1;
+            }
+            current->redir_out_path = strdup(token);
+            current->redir_append = (strlen(token) > 1 && token[1] == '>'); 
+
+        } else {
+            // executable or argument
+            if (current->exec_path == NULL) {
+                current->exec_path = resolve_executable(token, *variables);
+                if (current->exec_path == NULL) {
+                    free(line_copy);
+                    return (Command *)-1;
+                }
+                current->args = (char **)malloc(2 * sizeof(char *)); 
+                current->args[0] = strdup(token); 
+                current->args[1] = NULL;
+            } else {
+                // token is an argument to the command
+                int argc = 0;
+                while (current->args[argc] != NULL) argc++; 
+                current->args = (char **)realloc(current->args, (argc + 2) * sizeof(char *));
+                current->args[argc] = strdup(token);
+                current->args[argc + 1] = NULL;
+            }
+        }
+
+        token = strtok_r(NULL, " \t\n", &saveptr);
     }
 
-    cmd->next = NULL;
+    free(line_copy); 
+    return head; // return head of the linked list of commands
 
-    return *cmds;
 }
 
 // COMPLETE
@@ -315,6 +281,10 @@ char *replace_variables_mk_line(const char *line, Variable *variables){
     size_t new_line_length = strlen(line) + 1;
     char markers[new_line_length];
 
+    // Commented so no warnings in starter make
+    // Variable *replacements = NULL;
+    // Variable **current = &replacements;
+    // const char *parse_var_st, *parse_var_end;
     memset(markers, '-', sizeof(markers));
     markers[sizeof(markers) - 1] = '\0';
 
@@ -333,6 +303,7 @@ char *replace_variables_mk_line(const char *line, Variable *variables){
         current_variable = current_variable->next;
     }
 
+    // todo: change these values
     char *new_line = (char *)malloc(new_line_length + replacements_count * (VAR_VALUE_MAX_LEN - VAR_NAME_MAX_LEN));
     if (new_line == NULL) {
         perror("replace_variables_mk_line");
@@ -365,7 +336,7 @@ char *replace_variables_mk_line(const char *line, Variable *variables){
     return new_line;
 }
 
-// maybe done
+
 void free_variable(Variable *var, uint8_t recursive){
     if (var == NULL) {
         return;
