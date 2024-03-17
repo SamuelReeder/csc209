@@ -27,7 +27,8 @@
 // Arg help
 #define LONG_HELP_ARG "--help"
 #define LONG_INIT_ARG "--init-file="
-#define DEFAULT_INIT "~/.cscshell_init"
+// #define DEFAULT_INIT "~/.cscshell_init"
+#define DEFAULT_INIT "./.cscshell_init"
 
 // Buffer sizes
 #define MAX_USER_BUF 128
